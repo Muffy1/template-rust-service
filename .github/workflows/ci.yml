@@ -1,5 +1,9 @@
+name: CI
+
 on: [push, pull_request]
+
 jobs:
   ci:
     uses: muffy86/infra-automation/.github/workflows/ci-rust.yml@main
-    with: { rust-toolchain: "stable" }
+    with:
+      rust-toolchain: "stable"
