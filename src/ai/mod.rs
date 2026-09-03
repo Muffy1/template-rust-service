@@ -6,11 +6,21 @@ use serde::{Deserialize, Serialize};
 use std::env;
 
 #[derive(Debug, Clone, Copy)]
-pub enum Provider { Ollama, OpenAi, Anthropic, Venice, Groq, OpenRouter }
+pub enum Provider {
+    Ollama,
+    OpenAi,
+    Anthropic,
+    Venice,
+    Groq,
+    OpenRouter,
+}
 
 impl Provider {
     pub fn from_env() -> Self {
-        match env::var("AI_PROVIDER").unwrap_or_else(|_| "ollama".into()).as_str() {
+        match env::var("AI_PROVIDER")
+            .unwrap_or_else(|_| "ollama".into())
+            .as_str()
+        {
             "openai" => Self::OpenAi,
             "anthropic" => Self::Anthropic,
             "venice" => Self::Venice,
@@ -49,34 +59,57 @@ struct ChatReq<'a> {
     max_tokens: u32,
 }
 #[derive(Debug, Serialize)]
-struct Msg<'a> { role: &'a str, content: &'a str }
+struct Msg<'a> {
+    role: &'a str,
+    content: &'a str,
+}
 #[derive(Debug, Deserialize)]
-struct ChatResp { choices: Vec<Choice> }
+struct ChatResp {
+    choices: Vec<Choice>,
+}
 #[derive(Debug, Deserialize)]
-struct Choice { message: RespMsg }
+struct Choice {
+    message: RespMsg,
+}
 #[derive(Debug, Deserialize)]
-struct RespMsg { content: String }
+struct RespMsg {
+    content: String,
+}
 
 pub async fn chat(prompt: &str) -> anyhow::Result<String> {
     let provider = Provider::from_env();
     let model = env::var("AI_MODEL").unwrap_or_else(|_| provider.default_model().into());
     let api_key = env::var("AI_API_KEY").unwrap_or_else(|_| "ollama".into());
 
-    let url = format!("{}/chat/completions", env::var("AI_BASE_URL").unwrap_or_else(|_| provider.base_url().into()));
+    let url = format!(
+        "{}/chat/completions",
+        env::var("AI_BASE_URL").unwrap_or_else(|_| provider.base_url().into())
+    );
     let body = ChatReq {
         model: &model,
-        messages: vec![Msg { role: "user", content: prompt }],
+        messages: vec![Msg {
+            role: "user",
+            content: prompt,
+        }],
         temperature: 0.7,
         max_tokens: 1024,
     };
     let client = reqwest::Client::new();
-    let resp = client.post(url)
+    let resp = client
+        .post(url)
         .bearer_auth(api_key)
         .json(&body)
-        .send().await?
+        .send()
+        .await?
         .error_for_status()?
-        .json::<ChatResp>().await?;
-    Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
+        .json::<ChatResp>()
+        .await?;
+    Ok(resp
+        .choices
+        .into_iter()
+        .next()
+        .map(|c| c.message.content)
+        .unwrap_or_default())
 }
 
 #[cfg(test)]
@@ -84,7 +117,14 @@ mod tests {
     use super::*;
     #[test]
     fn provider_roundtrip() {
-        for p in ["ollama", "openai", "anthropic", "venice", "groq", "openrouter"] {
+        for p in [
+            "ollama",
+            "openai",
+            "anthropic",
+            "venice",
+            "groq",
+            "openrouter",
+        ] {
             std::env::set_var("AI_PROVIDER", p);
             let provider = Provider::from_env();
             assert!(provider.base_url().starts_with("http"));
